@@ -1,0 +1,10 @@
+[package]
+name = "thot-cli"
+version = "0.1.0"
+authors = ["Cameron Bytheway <bytheway.cameron@gmail.com>"]
+
+[dependencies]
+clap = "2"
+serde = "1.0"
+serde_json = "1.0"
+thot = { path = "../.." }
