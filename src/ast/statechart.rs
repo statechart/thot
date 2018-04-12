@@ -1,9 +1,12 @@
-type ExecutableId = usize;
-type InvocationId = usize;
-type ConditonId = usize;
+use ast::location::Location;
 
 #[path = "statechart/to_core.rs"]
 pub mod to_core;
+
+pub type ExecutableId = usize;
+pub type InvocationId = usize;
+pub type ConditonId = usize;
+pub type EventId = usize;
 
 #[derive(Clone, Debug)]
 pub enum IteratorEvent {
@@ -123,38 +126,6 @@ impl Node {
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize)]
-#[serde(deny_unknown_fields)]
-pub struct Point {
-    pub line: u16,
-    pub column: u16,
-}
-
-impl Default for Point {
-    fn default() -> Self {
-        Point { line: 0, column: 0 }
-    }
-}
-
-#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
-#[serde(deny_unknown_fields)]
-pub struct Position {
-    #[serde(default)]
-    pub start: Point,
-
-    #[serde(default)]
-    pub end: Point,
-}
-
-impl Default for Position {
-    fn default() -> Self {
-        Position {
-            start: Point::default(),
-            end: Point::default(),
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
 pub enum Binding {
     Early,
     Late,
@@ -179,7 +150,7 @@ pub struct Statechart {
     pub children: Vec<Node>,
 
     #[serde(default)]
-    pub position: Position,
+    pub loc: Location,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
@@ -195,7 +166,7 @@ pub struct State {
     pub children: Vec<Node>,
 
     #[serde(default)]
-    pub position: Position,
+    pub loc: Location,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
@@ -208,7 +179,7 @@ pub struct Parallel {
     pub children: Vec<Node>,
 
     #[serde(default)]
-    pub position: Position,
+    pub loc: Location,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize)]
@@ -227,7 +198,7 @@ impl Default for TransitionType {
 #[serde(deny_unknown_fields)]
 pub struct Transition {
     #[serde(default)]
-    pub events: Vec<String>,
+    pub events: Vec<EventId>,
 
     #[serde(default)]
     pub targets: Vec<String>,
@@ -242,14 +213,14 @@ pub struct Transition {
     pub children: Vec<ExecutableId>,
 
     #[serde(default)]
-    pub position: Position,
+    pub loc: Location,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct OnEvent {
     #[serde(default)]
-    pub events: Vec<String>,
+    pub events: Vec<EventId>,
 
     #[serde(default)]
     pub condition: Option<ConditonId>,
@@ -258,7 +229,7 @@ pub struct OnEvent {
     pub children: Vec<ExecutableId>,
 
     #[serde(default)]
-    pub position: Position,
+    pub loc: Location,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
@@ -268,7 +239,7 @@ pub struct Initial {
     pub children: Vec<Node>,
 
     #[serde(default)]
-    pub position: Position,
+    pub loc: Location,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
@@ -281,7 +252,7 @@ pub struct Final {
     pub children: Vec<Node>,
 
     #[serde(default)]
-    pub position: Position,
+    pub loc: Location,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
@@ -291,7 +262,7 @@ pub struct OnInit {
     pub children: Vec<ExecutableId>,
 
     #[serde(default)]
-    pub position: Position,
+    pub loc: Location,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
@@ -301,7 +272,7 @@ pub struct OnEntry {
     pub children: Vec<ExecutableId>,
 
     #[serde(default)]
-    pub position: Position,
+    pub loc: Location,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
@@ -311,7 +282,7 @@ pub struct OnExit {
     pub children: Vec<ExecutableId>,
 
     #[serde(default)]
-    pub position: Position,
+    pub loc: Location,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize)]
@@ -339,7 +310,7 @@ pub struct History {
     pub children: Vec<Node>,
 
     #[serde(default)]
-    pub position: Position,
+    pub loc: Location,
 }
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, Serialize)]
@@ -348,5 +319,5 @@ pub struct Invoke {
     pub id: InvocationId,
 
     #[serde(default)]
-    pub position: Position,
+    pub loc: Location,
 }

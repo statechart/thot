@@ -6,6 +6,7 @@ use clap::{App, Arg, SubCommand};
 use std::fs::File;
 use std::io::prelude::*;
 use thot::ast::core::Core;
+use thot::ast::microstep::Microstep;
 use thot::ast::statechart::Statechart;
 
 fn main() {
@@ -51,10 +52,10 @@ fn main() {
             .expect("something went wrong reading the file");
 
         let statechart: Statechart = serde_json::from_str(&contents).unwrap();
-
         let core: Result<Core, _> = statechart.into();
+        let microstep: Result<Microstep, _> = core.unwrap().into();
 
-        let out = serde_json::to_string_pretty(&core.unwrap()).unwrap();
+        let out = serde_json::to_string(&microstep.unwrap()).unwrap();
 
         println!("{}", out);
     }

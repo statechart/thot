@@ -13,6 +13,12 @@ pub mod ast {
 
     #[path = "microstep.rs"]
     pub mod microstep;
+
+    #[path = "position.rs"]
+    pub mod location;
+
+    #[path = "conversion_error.rs"]
+    pub mod conversion_error;
 }
 
 #[cfg(test)]

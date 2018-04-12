@@ -1,16 +1,7 @@
+use ast::conversion_error::{ConversionError, Errors};
 use ast::core;
 use ast::statechart;
 use std::collections::HashMap;
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct ConversionError {
-    pub message: String,
-    pub fatal: bool,
-    pub source: String,
-    pub position: statechart::Position,
-}
-
-pub type Errors = Vec<ConversionError>;
 
 impl Into<Result<core::Core, Errors>> for statechart::Statechart {
     fn into(self) -> Result<core::Core, Errors> {
@@ -31,6 +22,7 @@ impl Into<Result<core::Core, Errors>> for statechart::Statechart {
                         states.push(core::State {
                             idx,
                             t: core::StateType::Compound,
+                            loc: node.loc,
                             ..Default::default()
                         });
                         ancestors.push(idx);
@@ -44,6 +36,7 @@ impl Into<Result<core::Core, Errors>> for statechart::Statechart {
                             t: core::StateType::Compound,
                             parent: *ancestors.last().unwrap(),
                             ancestors: ancestors.clone(),
+                            loc: node.loc,
                             ..Default::default()
                         });
                         ancestors.push(idx);
@@ -57,6 +50,7 @@ impl Into<Result<core::Core, Errors>> for statechart::Statechart {
                             t: core::StateType::Parallel,
                             parent: *ancestors.last().unwrap(),
                             ancestors: ancestors.clone(),
+                            loc: node.loc,
                             ..Default::default()
                         });
                         ancestors.push(idx);
@@ -72,6 +66,7 @@ impl Into<Result<core::Core, Errors>> for statechart::Statechart {
                             source,
                             events: node.events.clone(),
                             condition: node.condition,
+                            loc: node.loc,
                             ..Default::default()
                         };
                         transitions.push(transition);
@@ -79,10 +74,7 @@ impl Into<Result<core::Core, Errors>> for statechart::Statechart {
                     statechart::Node::OnEvent(node) => {
                         let source = *ancestors.last().unwrap();
                         let idx = transitions.len();
-                        let mut events = node.events.clone();
-                        if events.len() == 0 {
-                            events.push("*".to_string());
-                        }
+                        let events = node.events.clone();
                         states[source].transitions.push(idx);
                         let transition = core::Transition {
                             idx,
@@ -90,17 +82,19 @@ impl Into<Result<core::Core, Errors>> for statechart::Statechart {
                             source,
                             events,
                             condition: node.condition,
+                            loc: node.loc,
                             ..Default::default()
                         };
                         transitions.push(transition);
                     }
-                    statechart::Node::Initial(_node) => {
+                    statechart::Node::Initial(node) => {
                         let idx = states.len();
                         states.push(core::State {
                             idx,
                             t: core::StateType::Initial,
                             parent: *ancestors.last().unwrap(),
                             ancestors: ancestors.clone(),
+                            loc: node.loc,
                             ..Default::default()
                         });
                         ancestors.push(idx);
@@ -114,6 +108,7 @@ impl Into<Result<core::Core, Errors>> for statechart::Statechart {
                             t: core::StateType::Final,
                             parent: *ancestors.last().unwrap(),
                             ancestors: ancestors.clone(),
+                            loc: node.loc,
                             ..Default::default()
                         });
                         ancestors.push(idx);
@@ -147,6 +142,7 @@ impl Into<Result<core::Core, Errors>> for statechart::Statechart {
                             },
                             parent: *ancestors.last().unwrap(),
                             ancestors: ancestors.clone(),
+                            loc: node.loc,
                             ..Default::default()
                         });
                         ancestors.push(idx);
@@ -210,7 +206,7 @@ impl Into<Result<core::Core, Errors>> for statechart::Statechart {
                                     message: format!("Duplicate target: {:?}", id_s),
                                     fatal: true,
                                     source: "statechart/ast/statechart/to_core".to_string(),
-                                    position: Default::default(),
+                                    loc: states[idx].loc,
                                 });
                             } else {
                                 state_ids.insert(id_s.clone(), idx);
@@ -232,7 +228,7 @@ impl Into<Result<core::Core, Errors>> for statechart::Statechart {
                         message: format!("Missing target: {:?}", state_target),
                         fatal: true,
                         source: "statechart/ast/statechart/to_core".to_string(),
-                        position: Default::default(),
+                        loc: transition.loc,
                     });
                 }
             }

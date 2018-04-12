@@ -1,16 +1,23 @@
+use ast::location::Location;
+
+#[path = "core/to_microstep.rs"]
+pub mod to_microstep;
+
 pub type StateId = usize;
 pub type TransitionId = usize;
 pub type ExecutableId = usize;
 pub type InvocationId = usize;
 pub type ConditonId = usize;
+pub type EventId = usize;
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct Core {
     pub states: Vec<State>,
     pub transitions: Vec<Transition>,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum StateType {
     Atomic,
@@ -74,30 +81,12 @@ pub struct State {
 
     #[serde(default)]
     pub has_history: bool,
+
+    #[serde(default)]
+    pub loc: Location,
 }
 
-impl State {
-    pub fn new() -> State {
-        State {
-            id: None,
-            idx: 0,
-            t: StateType::Atomic,
-            on_init: vec![],
-            on_enter: vec![],
-            on_exit: vec![],
-            invocations: vec![],
-            parent: 0,
-            children: vec![],
-            ancestors: vec![],
-            descendants: vec![],
-            initial: vec![],
-            transitions: vec![],
-            has_history: false,
-        }
-    }
-}
-
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum TransitionType {
     External,
@@ -130,7 +119,7 @@ pub struct Transition {
     pub source: StateId,
 
     #[serde(default)]
-    pub events: Vec<String>,
+    pub events: Vec<EventId>,
 
     #[serde(default)]
     pub condition: Option<ConditonId>,
@@ -146,20 +135,7 @@ pub struct Transition {
 
     #[serde(default)]
     pub exits: Vec<StateId>,
-}
 
-impl Transition {
-    pub fn new() -> Transition {
-        Transition {
-            idx: 0,
-            t: TransitionType::External,
-            source: 0,
-            events: vec![],
-            condition: None,
-            on_transition: vec![],
-            targets: vec![],
-            conflicts: vec![],
-            exits: vec![],
-        }
-    }
+    #[serde(default)]
+    pub loc: Location,
 }
