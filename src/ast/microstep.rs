@@ -110,6 +110,7 @@ pub struct LogicalExpression {
 pub enum LogicalOperator {
     And,
     Or,
+    Not,
     Xor,
 }
 

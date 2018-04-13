@@ -46,29 +46,29 @@ fn gen_init(
     let mut body = vec![];
     body.append(&mut gen_empty_configuration(
         ENTRY_PREFIX.to_string(),
-        false,
+        gen_bool(false, loc),
         &states,
     ));
     body.append(&mut gen_empty_configuration(
         TRANS_PREFIX.to_string(),
-        false,
+        gen_bool(false, loc),
         &states,
     ));
     body.append(&mut gen_empty_configuration(
         EXIT_PREFIX.to_string(),
-        false,
+        gen_bool(false, loc),
         &states,
     ));
 
     // enable the root state
-    body.push(Statement::AssignmentStatement(AssignmentStatement {
-        left: AssignmentStatementLeft::Identifier(Identifier {
+    body.push(gen_assign(
+        Identifier {
             name: format!("{}{}", ENTRY_PREFIX, 0),
             loc,
-        }),
-        right: Expression::BooleanLiteral(BooleanLiteral { value: true, loc }),
+        },
+        gen_bool(true, loc),
         loc,
-    }));
+    ));
 
     body.append(&mut gen_establish_entryset(&states, &transitions));
 
@@ -111,24 +111,20 @@ fn gen_select_transitions(
     body.push(gen_destruct(&history_ident, &states));
     body.append(&mut gen_empty_configuration(
         ENTRY_PREFIX.to_string(),
-        false,
+        gen_bool(false, loc),
         &states,
     ));
     body.append(&mut gen_empty_configuration(
         EXIT_PREFIX.to_string(),
-        false,
+        gen_bool(false, loc),
         &states,
     ));
     body.append(&mut gen_empty_configuration(
         AVAILABLE_TRANS_PREFIX.to_string(),
-        true,
+        gen_bool(true, loc),
         &states,
     ));
-    body.push(Statement::VariableDeclaration(VariableDeclaration {
-        id: VariableDeclarationId::Identifier(is_stable_ident.clone()),
-        init: Expression::BooleanLiteral(BooleanLiteral { value: false, loc }),
-        loc,
-    }));
+    body.push(gen_var(is_stable_ident.clone(), gen_bool(true, loc), loc));
     body.append(&mut gen_transition_select(
         &transitions,
         &has_event,
@@ -179,11 +175,7 @@ fn gen_entryset_entry_ancestors(states: &Vec<core::State>) -> Vec<Statement> {
             loc,
         };
         if state.descendants.len() == num_states {
-            statements.push(Statement::AssignmentStatement(AssignmentStatement {
-                left: AssignmentStatementLeft::Identifier(id),
-                right: Expression::BooleanLiteral(BooleanLiteral { value: true, loc }),
-                loc,
-            }));
+            statements.push(gen_assign(id, gen_bool(true, loc), loc));
         } else {
             statements.append(&mut gen_union(
                 &Expression::Identifier(id),
@@ -232,20 +224,17 @@ fn gen_entryset_exit_states(states: &Vec<core::State>) -> Vec<Statement> {
         for id in &state.on_exit {
             statements.push(Statement::ExecuteStatement(ExecuteStatement {
                 id: *id,
-                guard: Some(Expression::LogicalExpression(LogicalExpression {
-                    operator: LogicalOperator::And,
-                    arguments: vec![
-                        Expression::Identifier(Identifier {
-                            name: format!("{}{}", CONFIGURATION_PREFIX, idx),
-                            loc,
-                        }),
-                        Expression::Identifier(Identifier {
-                            name: format!("{}{}", EXIT_PREFIX, idx),
-                            loc,
-                        }),
-                    ],
+                guard: Some(gen_and(
+                    Expression::Identifier(Identifier {
+                        name: format!("{}{}", CONFIGURATION_PREFIX, idx),
+                        loc,
+                    }),
+                    Expression::Identifier(Identifier {
+                        name: format!("{}{}", EXIT_PREFIX, idx),
+                        loc,
+                    }),
                     loc,
-                })),
+                )),
                 loc,
             }));
         }
@@ -281,44 +270,38 @@ fn gen_entryset_enter_states(states: &Vec<core::State>) -> Vec<Statement> {
             name: format!("{}{}", ENTRY_GUARD_PREFIX, idx),
             loc,
         };
-        statements.push(Statement::VariableDeclaration(VariableDeclaration {
-            id: VariableDeclarationId::Identifier(guard_ident.clone()),
-            init: Expression::LogicalExpression(LogicalExpression {
-                operator: LogicalOperator::And,
-                arguments: vec![
+        statements.push(gen_var(
+            guard_ident.clone(),
+            gen_and(
+                gen_not(
+                    Expression::Identifier(Identifier {
+                        name: format!("{}{}", CONFIGURATION_PREFIX, idx),
+                        loc,
+                    }),
+                    loc,
+                ),
+                Expression::Identifier(Identifier {
+                    name: format!("{}{}", ENTRY_PREFIX, idx),
+                    loc,
+                }),
+                loc,
+            ),
+            loc,
+        ));
+        for id in &state.on_init {
+            statements.push(Statement::ExecuteStatement(ExecuteStatement {
+                id: *id,
+                guard: Some(gen_and(
                     gen_not(
-                        &Expression::Identifier(Identifier {
-                            name: format!("{}{}", CONFIGURATION_PREFIX, idx),
+                        Expression::Identifier(Identifier {
+                            name: format!("{}{}", INITIALIZED_PREFIX, idx),
                             loc,
                         }),
                         loc,
                     ),
-                    Expression::Identifier(Identifier {
-                        name: format!("{}{}", ENTRY_PREFIX, idx),
-                        loc,
-                    }),
-                ],
-                loc,
-            }),
-            loc,
-        }));
-        for id in &state.on_init {
-            statements.push(Statement::ExecuteStatement(ExecuteStatement {
-                id: *id,
-                guard: Some(Expression::LogicalExpression(LogicalExpression {
-                    operator: LogicalOperator::And,
-                    arguments: vec![
-                        gen_not(
-                            &Expression::Identifier(Identifier {
-                                name: format!("{}{}", INITIALIZED_PREFIX, idx),
-                                loc,
-                            }),
-                            loc,
-                        ),
-                        Expression::Identifier(guard_ident.clone()),
-                    ],
+                    Expression::Identifier(guard_ident.clone()),
                     loc,
-                })),
+                )),
                 loc,
             }));
         }
@@ -351,18 +334,22 @@ fn gen_destruct(configuration: &Identifier, states: &Vec<core::State>) -> Statem
     })
 }
 
-fn gen_empty_configuration(name: String, value: bool, states: &Vec<core::State>) -> Vec<Statement> {
+fn gen_empty_configuration(
+    name: String,
+    init: Expression,
+    states: &Vec<core::State>,
+) -> Vec<Statement> {
     (0..states.len())
         .map(|index| {
             let loc = states[index].loc;
-            Statement::VariableDeclaration(VariableDeclaration {
-                id: VariableDeclarationId::Identifier(Identifier {
+            gen_var(
+                Identifier {
                     name: format!("{}{}", name, index),
                     loc,
-                }),
-                init: Expression::BooleanLiteral(BooleanLiteral { value, loc }),
+                },
+                init.clone(),
                 loc,
-            })
+            )
         })
         .collect()
 }
@@ -385,9 +372,9 @@ fn gen_transition_select(
 
                 let guard = Expression::Identifier(transition_ident.clone());
 
-                statements.push(Statement::VariableDeclaration(VariableDeclaration {
-                    id: VariableDeclarationId::Identifier(transition_ident),
-                    init: Expression::LogicalExpression(LogicalExpression {
+                statements.push(gen_var(
+                    transition_ident,
+                    Expression::LogicalExpression(LogicalExpression {
                         operator: LogicalOperator::And,
                         arguments: vec![
                             gen_is_transition_available(&transition),
@@ -398,7 +385,8 @@ fn gen_transition_select(
                         loc,
                     }),
                     loc,
-                }));
+                ));
+
                 statements.append(&mut gen_union(
                     &guard,
                     &ENTRY_PREFIX.to_string(),
@@ -412,20 +400,16 @@ fn gen_transition_select(
                     loc,
                 ));
                 statements.append(&mut gen_intersection(
-                    &gen_not(&guard, loc),
+                    &gen_not(guard.clone(), loc),
                     &AVAILABLE_TRANS_PREFIX.to_string(),
                     &transition.conflicts,
                     loc,
                 ));
-                statements.push(Statement::AssignmentStatement(AssignmentStatement {
-                    left: AssignmentStatementLeft::Identifier(is_stable.clone()),
-                    right: Expression::LogicalExpression(LogicalExpression {
-                        operator: LogicalOperator::Or,
-                        arguments: vec![Expression::Identifier(is_stable.clone()), guard],
-                        loc,
-                    }),
+                statements.push(gen_assign(
+                    is_stable.clone(),
+                    gen_or(Expression::Identifier(is_stable.clone()), guard, loc),
                     loc,
-                }));
+                ));
             }
         }
     }
@@ -467,7 +451,7 @@ fn gen_is_transition_enabled(transition: &core::Transition) -> Expression {
     let loc = transition.loc;
     match transition.condition {
         Some(id) => Expression::ConditionExpression(ConditionExpression { id, loc }),
-        None => Expression::BooleanLiteral(BooleanLiteral { value: true, loc }),
+        None => gen_bool(true, loc),
     }
 }
 
@@ -489,13 +473,46 @@ fn gen_intersection(
     gen_merge(guard, LogicalOperator::And, prefix, ids, loc)
 }
 
-fn gen_not(expr: &Expression, loc: Location) -> Expression {
+fn gen_not(expr: Expression, loc: Location) -> Expression {
     Expression::LogicalExpression(LogicalExpression {
-        operator: LogicalOperator::Xor,
-        arguments: vec![
-            Expression::BooleanLiteral(BooleanLiteral { value: true, loc }),
-            expr.clone(),
-        ],
+        operator: LogicalOperator::Not,
+        arguments: vec![expr],
+        loc,
+    })
+}
+
+fn gen_or(lhs: Expression, rhs: Expression, loc: Location) -> Expression {
+    Expression::LogicalExpression(LogicalExpression {
+        operator: LogicalOperator::Or,
+        arguments: vec![lhs.clone(), rhs.clone()],
+        loc,
+    })
+}
+
+fn gen_and(lhs: Expression, rhs: Expression, loc: Location) -> Expression {
+    Expression::LogicalExpression(LogicalExpression {
+        operator: LogicalOperator::And,
+        arguments: vec![lhs.clone(), rhs.clone()],
+        loc,
+    })
+}
+
+fn gen_bool(value: bool, loc: Location) -> Expression {
+    Expression::BooleanLiteral(BooleanLiteral { value, loc })
+}
+
+fn gen_var(id: Identifier, init: Expression, loc: Location) -> Statement {
+    Statement::VariableDeclaration(VariableDeclaration {
+        id: VariableDeclarationId::Identifier(id),
+        init,
+        loc,
+    })
+}
+
+fn gen_assign(left: Identifier, right: Expression, loc: Location) -> Statement {
+    Statement::AssignmentStatement(AssignmentStatement {
+        left: AssignmentStatementLeft::Identifier(left),
+        right,
         loc,
     })
 }
@@ -513,15 +530,15 @@ fn gen_merge(
                 name: format!("{}{}", prefix, index),
                 loc,
             };
-            Statement::VariableDeclaration(VariableDeclaration {
-                id: VariableDeclarationId::Identifier(id.clone()),
-                init: Expression::LogicalExpression(LogicalExpression {
+            gen_var(
+                id.clone(),
+                Expression::LogicalExpression(LogicalExpression {
                     operator,
                     arguments: vec![Expression::Identifier(id), guard.clone()],
                     loc,
                 }),
                 loc,
-            })
+            )
         })
         .collect()
 }
