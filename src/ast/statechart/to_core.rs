@@ -12,6 +12,7 @@ impl Into<Result<core::Core, Errors>> for statechart::Statechart {
         let mut targets = HashMap::new();
         let mut state_ids = HashMap::new();
         let mut binding = statechart::Binding::Late;
+        let root_loc = self.loc;
 
         for event in statechart::Node::Statechart(self).iter() {
             match event {
@@ -64,7 +65,7 @@ impl Into<Result<core::Core, Errors>> for statechart::Statechart {
                             idx,
                             t: core::TransitionType::External,
                             source,
-                            events: node.events.clone(),
+                            event: node.event.clone(),
                             condition: node.condition,
                             loc: node.loc,
                             ..Default::default()
@@ -74,13 +75,13 @@ impl Into<Result<core::Core, Errors>> for statechart::Statechart {
                     statechart::Node::OnEvent(node) => {
                         let source = *ancestors.last().unwrap();
                         let idx = transitions.len();
-                        let events = node.events.clone();
+                        let event = node.event.clone();
                         states[source].transitions.push(idx);
                         let transition = core::Transition {
                             idx,
                             t: core::TransitionType::OnEvent,
                             source,
-                            events,
+                            event,
                             condition: node.condition,
                             loc: node.loc,
                             ..Default::default()
@@ -244,6 +245,7 @@ impl Into<Result<core::Core, Errors>> for statechart::Statechart {
             Ok(core::Core {
                 states: states,
                 transitions: transitions,
+                loc: root_loc,
             })
         }
     }

@@ -15,6 +15,7 @@ pub type EventId = usize;
 pub struct Core {
     pub states: Vec<State>,
     pub transitions: Vec<Transition>,
+    pub loc: Location,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -40,7 +41,7 @@ impl Default for StateType {
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct State {
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
 
     #[serde(default)]
@@ -118,10 +119,10 @@ pub struct Transition {
     #[serde(default)]
     pub source: StateId,
 
-    #[serde(default)]
-    pub events: Vec<EventId>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub event: Option<EventId>,
 
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub condition: Option<ConditonId>,
 
     #[serde(default)]

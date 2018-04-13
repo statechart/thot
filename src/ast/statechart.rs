@@ -156,7 +156,7 @@ pub struct Statechart {
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct State {
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
 
     #[serde(default)]
@@ -172,7 +172,7 @@ pub struct State {
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Parallel {
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
 
     #[serde(default)]
@@ -197,8 +197,8 @@ impl Default for TransitionType {
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Transition {
-    #[serde(default)]
-    pub events: Vec<EventId>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub event: Option<EventId>,
 
     #[serde(default)]
     pub targets: Vec<String>,
@@ -206,7 +206,7 @@ pub struct Transition {
     #[serde(default)]
     pub t: TransitionType,
 
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub condition: Option<ConditonId>,
 
     #[serde(default)]
@@ -219,10 +219,10 @@ pub struct Transition {
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct OnEvent {
-    #[serde(default)]
-    pub events: Vec<EventId>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub event: Option<EventId>,
 
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub condition: Option<ConditonId>,
 
     #[serde(default)]
@@ -245,7 +245,7 @@ pub struct Initial {
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Final {
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
 
     #[serde(default)]
@@ -300,7 +300,7 @@ impl Default for HistoryType {
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct History {
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
 
     #[serde(default)]

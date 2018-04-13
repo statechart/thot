@@ -1,4 +1,5 @@
 use ast::location::Location;
+type ExecutableId = usize;
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -7,7 +8,8 @@ pub struct Microstep {
     pub init: Function,
     pub select_transitions: Function,
     pub render: Function,
-    // TODO add state ids
+    // TODO add state id mapping
+    pub loc: Location,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -15,10 +17,9 @@ pub struct Microstep {
 pub enum Statement {
     VariableDeclaration(VariableDeclaration),
     AssignmentStatement(AssignmentStatement),
+    ConfigurationDestructureDeclaration(ConfigurationDestructureDeclaration),
     ReturnStatement,
-    InvokeStatement,
-    UninvokeStatement,
-    ExecuteStatement,
+    ExecuteStatement(ExecuteStatement),
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -30,9 +31,8 @@ pub enum Expression {
     BooleanLiteral(BooleanLiteral),
     IntegerLiteral(IntegerLiteral),
     LogicalExpression(LogicalExpression),
-    ConfigurationIndexExpression(ConfigurationIndexExpression),
     ConfigurationCreateExpression,
-    ConditionExpression,
+    ConditionExpression(ConditionExpression),
     RenderExpression,
 }
 
@@ -51,7 +51,7 @@ pub enum SimpleExpression {
     BooleanLiteral(BooleanLiteral),
     IntegerLiteral(IntegerLiteral),
     LogicalExpression(LogicalExpression),
-    ConditionExpression,
+    ConditionExpression(ConditionExpression),
 }
 
 impl Default for SimpleExpression {
@@ -114,11 +114,9 @@ pub enum LogicalOperator {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct ConfigurationIndexExpression {
-    pub configuration: SimpleExpression,
-
+pub struct ConditionExpression {
     #[serde(default)]
-    pub index: usize,
+    pub id: usize,
 
     #[serde(default)]
     pub loc: Location,
@@ -147,6 +145,17 @@ pub struct VariableDeclaration {
     pub loc: Location,
 }
 
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+pub struct ConfigurationDestructureDeclaration {
+    pub left: Vec<Expression>,
+
+    #[serde(default)]
+    pub right: Expression,
+
+    #[serde(default)]
+    pub loc: Location,
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(tag = "type")]
 pub enum VariableDeclarationId {
@@ -161,10 +170,33 @@ impl Default for VariableDeclarationId {
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct AssignmentStatement {
-    pub left: Identifier,
+    pub left: AssignmentStatementLeft,
 
     #[serde(default)]
     pub right: Expression,
+
+    #[serde(default)]
+    pub loc: Location,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(tag = "type")]
+pub enum AssignmentStatementLeft {
+    Identifier(Identifier),
+}
+
+impl Default for AssignmentStatementLeft {
+    fn default() -> AssignmentStatementLeft {
+        AssignmentStatementLeft::Identifier(Default::default())
+    }
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+pub struct ExecuteStatement {
+    pub id: ExecutableId,
+
+    #[serde(default)]
+    pub guard: Option<Expression>,
 
     #[serde(default)]
     pub loc: Location,
