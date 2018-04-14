@@ -6,7 +6,7 @@ type ExecutableId = usize;
 pub struct Microstep {
     pub configuration_size: usize,
     pub init: Function,
-    pub select_transitions: Function,
+    pub next: Function,
     pub render: Function,
     // TODO add state id mapping
     pub loc: Location,
@@ -18,7 +18,7 @@ pub enum Statement {
     VariableDeclaration(VariableDeclaration),
     AssignmentStatement(AssignmentStatement),
     ConfigurationDestructureDeclaration(ConfigurationDestructureDeclaration),
-    ReturnStatement,
+    ReturnStatement(ReturnStatement),
     ExecuteStatement(ExecuteStatement),
 }
 
@@ -31,9 +31,29 @@ pub enum Expression {
     BooleanLiteral(BooleanLiteral),
     IntegerLiteral(IntegerLiteral),
     LogicalExpression(LogicalExpression),
-    ConfigurationCreateExpression,
+    ConfigurationCreateExpression(ConfigurationCreateExpression),
     ConditionExpression(ConditionExpression),
-    RenderExpression,
+    MicrostepResult(MicrostepResult),
+    RenderExpression, // TODO
+}
+
+impl Expression {
+    pub fn to_simple(self: Expression) -> SimpleExpression {
+        match self {
+            Expression::Identifier(v) => SimpleExpression::Identifier(v),
+            Expression::StringLiteral(v) => SimpleExpression::StringLiteral(v),
+            Expression::BooleanLiteral(v) => SimpleExpression::BooleanLiteral(v),
+            Expression::IntegerLiteral(v) => SimpleExpression::IntegerLiteral(v),
+            Expression::LogicalExpression(v) => SimpleExpression::LogicalExpression(v),
+            Expression::ConditionExpression(v) => SimpleExpression::ConditionExpression(v),
+            Expression::ConfigurationCreateExpression(v) => {
+                SimpleExpression::ConfigurationCreateExpression(v)
+            }
+            _ => {
+                panic!("Invalid conversion {:?}", self);
+            }
+        }
+    }
 }
 
 impl Default for Expression {
@@ -52,6 +72,7 @@ pub enum SimpleExpression {
     IntegerLiteral(IntegerLiteral),
     LogicalExpression(LogicalExpression),
     ConditionExpression(ConditionExpression),
+    ConfigurationCreateExpression(ConfigurationCreateExpression),
 }
 
 impl Default for SimpleExpression {
@@ -118,6 +139,33 @@ pub enum LogicalOperator {
 pub struct ConditionExpression {
     #[serde(default)]
     pub id: usize,
+
+    #[serde(default)]
+    pub loc: Location,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct MicrostepResult {
+    #[serde(default)]
+    pub configuration: SimpleExpression,
+
+    #[serde(default)]
+    pub initialized: SimpleExpression,
+
+    #[serde(default)]
+    pub history: SimpleExpression,
+
+    #[serde(default)]
+    pub is_stable: SimpleExpression,
+
+    #[serde(default)]
+    pub loc: Location,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct ConfigurationCreateExpression {
+    #[serde(default)]
+    pub arguments: Vec<Expression>,
 
     #[serde(default)]
     pub loc: Location,
@@ -197,6 +245,18 @@ pub struct ExecuteStatement {
     pub id: ExecutableId,
 
     #[serde(default)]
+    pub guard: Option<Expression>,
+
+    #[serde(default)]
+    pub loc: Location,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+pub struct ReturnStatement {
+    #[serde(default)]
+    pub argument: Expression,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub guard: Option<Expression>,
 
     #[serde(default)]
