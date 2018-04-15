@@ -33,6 +33,7 @@ pub enum Expression {
     LogicalExpression(LogicalExpression),
     ConfigurationCreateExpression(ConfigurationCreateExpression),
     ConditionExpression(ConditionExpression),
+    EventExpression(EventExpression),
     MicrostepResult(MicrostepResult),
     RenderExpression, // TODO
 }
@@ -46,6 +47,7 @@ impl Expression {
             Expression::IntegerLiteral(v) => SimpleExpression::IntegerLiteral(v),
             Expression::LogicalExpression(v) => SimpleExpression::LogicalExpression(v),
             Expression::ConditionExpression(v) => SimpleExpression::ConditionExpression(v),
+            Expression::EventExpression(v) => SimpleExpression::EventExpression(v),
             Expression::ConfigurationCreateExpression(v) => {
                 SimpleExpression::ConfigurationCreateExpression(v)
             }
@@ -72,6 +74,7 @@ pub enum SimpleExpression {
     IntegerLiteral(IntegerLiteral),
     LogicalExpression(LogicalExpression),
     ConditionExpression(ConditionExpression),
+    EventExpression(EventExpression),
     ConfigurationCreateExpression(ConfigurationCreateExpression),
 }
 
@@ -137,6 +140,15 @@ pub enum LogicalOperator {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct ConditionExpression {
+    #[serde(default)]
+    pub id: usize,
+
+    #[serde(default)]
+    pub loc: Location,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct EventExpression {
     #[serde(default)]
     pub id: usize,
 

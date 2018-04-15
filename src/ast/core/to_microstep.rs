@@ -45,32 +45,32 @@ fn gen_init(
 ) -> Function {
     let mut body = vec![];
     body.append(&mut gen_empty_configuration(
-        CONFIGURATION_PREFIX.to_string(),
+        CONFIGURATION_PREFIX,
         gen_bool(false, loc),
         &states,
     ));
     body.append(&mut gen_empty_configuration(
-        INITIALIZED_PREFIX.to_string(),
+        INITIALIZED_PREFIX,
         gen_bool(false, loc),
         &states,
     ));
     body.append(&mut gen_empty_configuration(
-        HISTORY_PREFIX.to_string(),
+        HISTORY_PREFIX,
         gen_bool(false, loc),
         &states,
     ));
     body.append(&mut gen_empty_configuration(
-        ENTRY_PREFIX.to_string(),
+        ENTRY_PREFIX,
         gen_bool(false, loc),
         &states,
     ));
-    body.append(&mut gen_empty_configuration(
-        TRANS_PREFIX.to_string(),
+    body.append(&mut gen_empty_transitions(
+        TRANS_PREFIX,
         gen_bool(false, loc),
-        &states,
+        &transitions,
     ));
     body.append(&mut gen_empty_configuration(
-        EXIT_PREFIX.to_string(),
+        EXIT_PREFIX,
         gen_bool(false, loc),
         &states,
     ));
@@ -115,17 +115,17 @@ fn gen_select_transitions(
     body.push(gen_destruct(&initialized_ident, &states));
     body.push(gen_destruct(&history_ident, &states));
     body.append(&mut gen_empty_configuration(
-        ENTRY_PREFIX.to_string(),
+        ENTRY_PREFIX,
         gen_bool(false, loc),
         &states,
     ));
     body.append(&mut gen_empty_configuration(
-        EXIT_PREFIX.to_string(),
+        EXIT_PREFIX,
         gen_bool(false, loc),
         &states,
     ));
     body.append(&mut gen_empty_configuration(
-        AVAILABLE_TRANS_PREFIX.to_string(),
+        AVAILABLE_TRANS_PREFIX,
         gen_bool(true, loc),
         &states,
     ));
@@ -246,15 +246,124 @@ fn gen_entryset_entry_descendants(
             core::StateType::Parallel => {
                 statements.append(&mut gen_union(
                     &Expression::Identifier(id),
-                    &ENTRY_PREFIX.to_string(),
+                    ENTRY_PREFIX,
                     &state.initial,
                     loc,
                 ));
             }
-            // TODO implement other types
+            // TODO implement history
+            core::StateType::Initial => {
+                statements.append(&mut gen_entryset_entry_descendants_initial(
+                    state,
+                    states,
+                    transitions,
+                ));
+            }
+            core::StateType::Compound => {
+                statements.append(&mut gen_entryset_entry_descendants_compound(state));
+            }
             _ => (),
         }
     }
+    statements
+}
+
+fn gen_entryset_entry_descendants_initial(
+    state: &core::State,
+    states: &Vec<core::State>,
+    transitions: &Vec<core::Transition>,
+) -> Vec<Statement> {
+    let mut statements = vec![];
+    let loc = state.loc;
+    let id = Identifier {
+        name: format!("{}{}", ENTRY_PREFIX, state.idx),
+        loc,
+    };
+    for transition_idx in state.transitions.iter() {
+        let transition = &transitions[*transition_idx];
+        let trans_id = Identifier {
+            name: format!("{}{}", TRANS_PREFIX, *transition_idx),
+            loc,
+        };
+        statements.push(gen_assign(
+            trans_id.clone(),
+            Expression::Identifier(id.clone()),
+            loc,
+        ));
+        statements.append(&mut gen_union(
+            &Expression::Identifier(id.clone()),
+            ENTRY_PREFIX,
+            &transition.targets,
+            loc,
+        ));
+
+        for target in transition.targets.iter() {
+            statements.append(&mut gen_union(
+                &Expression::Identifier(id.clone()),
+                ENTRY_PREFIX,
+                &states[*target].ancestors,
+                loc,
+            ));
+        }
+    }
+    statements.push(gen_assign(id, gen_bool(false, loc), loc));
+    statements
+}
+
+fn gen_entryset_entry_descendants_compound(state: &core::State) -> Vec<Statement> {
+    let mut statements = vec![];
+    let loc = state.loc;
+    let id = Identifier {
+        name: format!("{}{}", ENTRY_PREFIX, state.idx),
+        loc,
+    };
+
+    statements.append(&mut gen_union(
+        &gen_and(
+            Expression::Identifier(id.clone()),
+            gen_not(
+                Expression::Identifier(Identifier {
+                    name: format!("{}{}", CONFIGURATION_PREFIX, state.idx),
+                    loc,
+                }),
+                loc,
+            ),
+            loc,
+        ),
+        ENTRY_PREFIX,
+        &state.initial,
+        loc,
+    ));
+
+    for child in state.children.iter() {
+        let child_entry = Identifier {
+            name: format!("{}{}", ENTRY_PREFIX, child),
+            loc,
+        };
+        statements.push(gen_assign(
+            child_entry.clone(),
+            gen_or(
+                Expression::Identifier(child_entry),
+                gen_and(
+                    Expression::Identifier(Identifier {
+                        name: format!("{}{}", CONFIGURATION_PREFIX, child),
+                        loc,
+                    }),
+                    gen_not(
+                        Expression::Identifier(Identifier {
+                            name: format!("{}{}", EXIT_PREFIX, child),
+                            loc,
+                        }),
+                        loc,
+                    ),
+                    loc,
+                ),
+                loc,
+            ),
+            loc,
+        ));
+    }
+
     statements
 }
 
@@ -322,6 +431,7 @@ fn gen_entryset_enter_states(states: &Vec<core::State>) -> Vec<Statement> {
             statements.push(gen_var(
                 guard_ident.clone(),
                 gen_and(
+                    entry.clone(),
                     gen_not(
                         Expression::Identifier(Identifier {
                             name: format!("{}{}", CONFIGURATION_PREFIX, idx),
@@ -329,7 +439,6 @@ fn gen_entryset_enter_states(states: &Vec<core::State>) -> Vec<Statement> {
                         }),
                         loc,
                     ),
-                    entry.clone(),
                     loc,
                 ),
                 loc,
@@ -345,8 +454,8 @@ fn gen_entryset_enter_states(states: &Vec<core::State>) -> Vec<Statement> {
             statements.push(Statement::ExecuteStatement(ExecuteStatement {
                 id: *id,
                 guard: Some(gen_and(
-                    gen_not(Expression::Identifier(initital_ident.clone()), loc),
                     Expression::Identifier(guard_ident.clone()),
+                    gen_not(Expression::Identifier(initital_ident.clone()), loc),
                     loc,
                 )),
                 loc,
@@ -355,7 +464,7 @@ fn gen_entryset_enter_states(states: &Vec<core::State>) -> Vec<Statement> {
 
         statements.push(gen_assign(
             initital_ident.clone(),
-            gen_or(entry, Expression::Identifier(initital_ident), loc),
+            gen_or(Expression::Identifier(initital_ident), entry, loc),
             loc,
         ));
 
@@ -406,13 +515,33 @@ fn gen_construct(prefix: &'static str, states: &Vec<core::State>) -> Expression 
 }
 
 fn gen_empty_configuration(
-    name: String,
+    name: &'static str,
     init: Expression,
     states: &Vec<core::State>,
 ) -> Vec<Statement> {
     (0..states.len())
         .map(|index| {
             let loc = states[index].loc;
+            gen_var(
+                Identifier {
+                    name: format!("{}{}", name, index),
+                    loc,
+                },
+                init.clone(),
+                loc,
+            )
+        })
+        .collect()
+}
+
+fn gen_empty_transitions(
+    name: &'static str,
+    init: Expression,
+    transitions: &Vec<core::Transition>,
+) -> Vec<Statement> {
+    (0..transitions.len())
+        .map(|index| {
+            let loc = transitions[index].loc;
             gen_var(
                 Identifier {
                     name: format!("{}{}", name, index),
@@ -443,16 +572,21 @@ fn gen_transition_select(
 
                 let guard = Expression::Identifier(transition_ident.clone());
 
+                let mut arguments = vec![
+                    gen_is_transition_available(&transition),
+                    gen_is_transition_active(&transition),
+                    gen_is_transition_applicable(&transition, has_event),
+                ];
+
+                if let Some(is_enabled) = gen_is_transition_enabled(&transition) {
+                    arguments.push(is_enabled);
+                }
+
                 statements.push(gen_var(
                     transition_ident,
                     Expression::LogicalExpression(LogicalExpression {
                         operator: LogicalOperator::And,
-                        arguments: vec![
-                            gen_is_transition_available(&transition),
-                            gen_is_transition_active(&transition),
-                            gen_is_transition_applicable(&transition, has_event),
-                            gen_is_transition_enabled(&transition),
-                        ],
+                        arguments,
                         loc,
                     }),
                     loc,
@@ -460,27 +594,22 @@ fn gen_transition_select(
 
                 statements.append(&mut gen_union(
                     &guard,
-                    &ENTRY_PREFIX.to_string(),
+                    ENTRY_PREFIX,
                     &transition.targets,
                     loc,
                 ));
-                statements.append(&mut gen_union(
-                    &guard,
-                    &EXIT_PREFIX.to_string(),
-                    &transition.exits,
-                    loc,
-                ));
+                statements.append(&mut gen_union(&guard, EXIT_PREFIX, &transition.exits, loc));
                 statements.append(&mut gen_intersection(
                     &gen_not(guard.clone(), loc),
-                    &AVAILABLE_TRANS_PREFIX.to_string(),
+                    AVAILABLE_TRANS_PREFIX,
                     &transition.conflicts,
                     loc,
                 ));
                 statements.push(gen_assign(
                     is_stable.clone(),
                     gen_and(
-                        gen_not(guard, loc),
                         Expression::Identifier(is_stable.clone()),
+                        gen_not(guard, loc),
                         loc,
                     ),
                     loc,
@@ -493,13 +622,35 @@ fn gen_transition_select(
 }
 
 fn gen_is_transition_active(transition: &core::Transition) -> Expression {
+    let loc = transition.loc;
     let config_check = Expression::Identifier(Identifier {
         name: format!("{}{}", CONFIGURATION_PREFIX, transition.source),
-        loc: transition.loc,
+        loc,
     });
     match transition.t {
-        // TODO handle spontaneous
-        core::TransitionType::Spontaneous => config_check,
+        core::TransitionType::Spontaneous => {
+            let mut arguments = vec![];
+
+            for target in &transition.targets {
+                arguments.push(Expression::Identifier(Identifier {
+                    name: format!("{}{}", CONFIGURATION_PREFIX, target),
+                    loc,
+                }));
+            }
+
+            gen_and(
+                config_check,
+                gen_not(
+                    Expression::LogicalExpression(LogicalExpression {
+                        operator: LogicalOperator::And,
+                        arguments,
+                        loc,
+                    }),
+                    loc,
+                ),
+                loc,
+            )
+        }
         _ => config_check,
     }
 }
@@ -515,24 +666,32 @@ fn gen_is_transition_applicable(
     transition: &core::Transition,
     has_event: &Identifier,
 ) -> Expression {
-    // TODO if we have an event and this has an event and the event_id matches
-    Expression::Identifier(Identifier {
-        name: format!("{}{}", AVAILABLE_TRANS_PREFIX, transition.idx),
-        loc: transition.loc,
-    })
+    let loc = transition.loc;
+    if let Some(id) = transition.event {
+        gen_and(
+            Expression::Identifier(has_event.clone()),
+            Expression::EventExpression(EventExpression { id, loc }),
+            loc,
+        )
+    } else {
+        gen_not(Expression::Identifier(has_event.clone()), loc)
+    }
 }
 
-fn gen_is_transition_enabled(transition: &core::Transition) -> Expression {
+fn gen_is_transition_enabled(transition: &core::Transition) -> Option<Expression> {
     let loc = transition.loc;
     match transition.condition {
-        Some(id) => Expression::ConditionExpression(ConditionExpression { id, loc }),
-        None => gen_bool(true, loc),
+        Some(id) => Some(Expression::ConditionExpression(ConditionExpression {
+            id,
+            loc,
+        })),
+        None => None,
     }
 }
 
 fn gen_union(
     guard: &Expression,
-    prefix: &String,
+    prefix: &'static str,
     ids: &Vec<core::StateId>,
     loc: Location,
 ) -> Vec<Statement> {
@@ -541,7 +700,7 @@ fn gen_union(
 
 fn gen_intersection(
     guard: &Expression,
-    prefix: &String,
+    prefix: &'static str,
     ids: &Vec<core::StateId>,
     loc: Location,
 ) -> Vec<Statement> {
@@ -595,11 +754,11 @@ fn gen_assign(left: Identifier, right: Expression, loc: Location) -> Statement {
 fn gen_merge(
     guard: &Expression,
     operator: LogicalOperator,
-    prefix: &String,
+    prefix: &'static str,
     ids: &Vec<core::StateId>,
     loc: Location,
 ) -> Vec<Statement> {
-    (0..ids.len())
+    ids.iter()
         .map(|index| {
             let id = Identifier {
                 name: format!("{}{}", prefix, index),
@@ -609,7 +768,7 @@ fn gen_merge(
                 id.clone(),
                 Expression::LogicalExpression(LogicalExpression {
                     operator,
-                    arguments: vec![guard.clone(), Expression::Identifier(id)],
+                    arguments: vec![Expression::Identifier(id), guard.clone()],
                     loc,
                 }),
                 loc,
