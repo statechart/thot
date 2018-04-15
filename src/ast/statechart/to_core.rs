@@ -290,16 +290,23 @@ fn get_exit_set<'a>(
 ) -> Vec<core::StateId> {
     let domain = get_transition_domain(transition, states);
 
+    let targets = &transition.targets;
+
     domain
         .descendants
         .iter()
         .map(|idx| *idx)
-        .filter(|idx| match states[*idx].t {
-            core::StateType::Atomic
-            | core::StateType::Compound
-            | core::StateType::Parallel
-            | core::StateType::Final => true,
-            _ => false,
+        .filter(|idx| {
+            let state = &states[*idx];
+            match state.t {
+                core::StateType::Atomic
+                | core::StateType::Compound
+                | core::StateType::Parallel
+                | core::StateType::Final => {
+                    !(targets.contains(idx) || are_descendants(&state.descendants, targets))
+                }
+                _ => false,
+            }
         })
         .collect()
 }
@@ -330,6 +337,7 @@ fn find_lcca<'a>(
     source
         .ancestors
         .iter()
+        .rev()
         .map(|anc| &states[*anc])
         .filter(|state| match state.t {
             core::StateType::Atomic | core::StateType::Compound | core::StateType::Parallel => true,
