@@ -36,8 +36,6 @@ impl Default for StateType {
     }
 }
 
-// TODO add location information
-
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct State {
@@ -104,8 +102,6 @@ impl Default for TransitionType {
         TransitionType::External
     }
 }
-
-// TODO add location information
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]

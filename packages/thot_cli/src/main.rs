@@ -1,31 +1,17 @@
 extern crate clap;
 extern crate serde_json;
-extern crate thot;
+extern crate thot_core;
 
 use clap::{App, Arg, SubCommand};
 use std::fs::File;
 use std::io::prelude::*;
-use thot::ast::core::Core;
-use thot::ast::microstep::Microstep;
-use thot::ast::statechart::Statechart;
+use thot_core::ast::core::Core;
+use thot_core::ast::microstep::Microstep;
+use thot_core::ast::statechart::Statechart;
 
 fn main() {
     let matches = App::new("Statechart CLI")
         .version("1.0")
-        // .arg(Arg::with_name("config")
-        //      .short("c")
-        //      .long("config")
-        //      .value_name("FILE")
-        //      .help("Sets a custom config file")
-        //      .takes_value(true))
-        // .arg(Arg::with_name("INPUT")
-        //      .help("Sets the input file to use")
-        //      .required(true)
-        //      .index(1))
-        // .arg(Arg::with_name("v")
-        //      .short("v")
-        //      .multiple(true)
-        //      .help("Sets the level of verbosity"))
         .subcommand(
             SubCommand::with_name("compile")
                 .about("Compile statecharts")
@@ -33,13 +19,13 @@ fn main() {
                 .arg(
                     Arg::with_name("INPUT")
                         .help("Sets the input file to use")
-                        .required(true)
+                        .required(true),
                 )
                 .arg(
                     Arg::with_name("debug")
-                      .short("d")
-                      .help("print debug information verbosely")
-                )
+                        .short("d")
+                        .help("print debug information verbosely"),
+                ),
         )
         .get_matches();
 

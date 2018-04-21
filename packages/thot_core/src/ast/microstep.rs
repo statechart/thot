@@ -1,5 +1,6 @@
 use ast::location::Location;
 type ExecutableId = usize;
+type InvocationId = usize;
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -18,8 +19,11 @@ pub enum Statement {
     VariableDeclaration(VariableDeclaration),
     AssignmentStatement(AssignmentStatement),
     ConfigurationDestructureDeclaration(ConfigurationDestructureDeclaration),
+    InvocationsDestructureDeclaration(InvocationsDestructureDeclaration),
     ReturnStatement(ReturnStatement),
     ExecuteStatement(ExecuteStatement),
+    InvocationOpenStatement(InvocationOpenStatement),
+    InvocationCloseStatement(InvocationCloseStatement),
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -32,6 +36,7 @@ pub enum Expression {
     IntegerLiteral(IntegerLiteral),
     LogicalExpression(LogicalExpression),
     ConfigurationCreateExpression(ConfigurationCreateExpression),
+    InvocationsCreateExpression(InvocationsCreateExpression),
     ConditionExpression(ConditionExpression),
     EventExpression(EventExpression),
     MicrostepResult(MicrostepResult),
@@ -50,6 +55,9 @@ impl Expression {
             Expression::EventExpression(v) => SimpleExpression::EventExpression(v),
             Expression::ConfigurationCreateExpression(v) => {
                 SimpleExpression::ConfigurationCreateExpression(v)
+            }
+            Expression::InvocationsCreateExpression(v) => {
+                SimpleExpression::InvocationsCreateExpression(v)
             }
             _ => {
                 panic!("Invalid conversion {:?}", self);
@@ -76,6 +84,7 @@ pub enum SimpleExpression {
     ConditionExpression(ConditionExpression),
     EventExpression(EventExpression),
     ConfigurationCreateExpression(ConfigurationCreateExpression),
+    InvocationsCreateExpression(InvocationsCreateExpression),
 }
 
 impl Default for SimpleExpression {
@@ -167,6 +176,8 @@ pub struct MicrostepResult {
     #[serde(default)]
     pub history: SimpleExpression,
 
+    // #[serde(default)]
+    // pub invocations: SimpleExpression,
     #[serde(default)]
     pub is_stable: SimpleExpression,
 
@@ -176,6 +187,15 @@ pub struct MicrostepResult {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct ConfigurationCreateExpression {
+    #[serde(default)]
+    pub arguments: Vec<Expression>,
+
+    #[serde(default)]
+    pub loc: Location,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct InvocationsCreateExpression {
     #[serde(default)]
     pub arguments: Vec<Expression>,
 
@@ -208,6 +228,17 @@ pub struct VariableDeclaration {
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct ConfigurationDestructureDeclaration {
+    pub left: Vec<Expression>,
+
+    #[serde(default)]
+    pub right: Expression,
+
+    #[serde(default)]
+    pub loc: Location,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+pub struct InvocationsDestructureDeclaration {
     pub left: Vec<Expression>,
 
     #[serde(default)]
@@ -255,6 +286,28 @@ impl Default for AssignmentStatementLeft {
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct ExecuteStatement {
     pub id: ExecutableId,
+
+    #[serde(default)]
+    pub guard: Option<Expression>,
+
+    #[serde(default)]
+    pub loc: Location,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+pub struct InvocationOpenStatement {
+    pub id: InvocationId,
+
+    #[serde(default)]
+    pub guard: Option<Expression>,
+
+    #[serde(default)]
+    pub loc: Location,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+pub struct InvocationCloseStatement {
+    pub id: InvocationId,
 
     #[serde(default)]
     pub guard: Option<Expression>,

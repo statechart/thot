@@ -1,7 +1,8 @@
 [package]
-name = "thot"
+name = "thot_core"
 version = "0.1.0"
 authors = ["Cameron Bytheway <bytheway.cameron@gmail.com>"]
 
 [dependencies]
-thot_core = { path = "./packages/thot_core" }
+serde = "1.0"
+serde_derive = "1.0"

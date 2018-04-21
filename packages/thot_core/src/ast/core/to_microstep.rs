@@ -136,12 +136,19 @@ fn gen_select_transitions(
         &is_stable_ident,
     ));
 
+    body.append(&mut gen_invocations(
+        &states,
+        &Some(Expression::Identifier(is_stable_ident.clone())),
+    ));
+
     body.push(Statement::ReturnStatement(ReturnStatement {
         argument: Expression::MicrostepResult(MicrostepResult {
             configuration: SimpleExpression::Identifier(configuration_ident.clone()),
             initialized: SimpleExpression::Identifier(initialized_ident.clone()),
+            // TODO
+            // invocations: SimpleExpression::
             history: SimpleExpression::Identifier(history_ident.clone()),
-            is_stable: gen_bool(true, loc).to_simple(),
+            is_stable: SimpleExpression::Identifier(is_stable_ident.clone()),
             loc,
         }),
         guard: Some(Expression::Identifier(is_stable_ident)),
@@ -181,6 +188,8 @@ fn gen_establish_entryset(
             configuration: gen_construct(ENTRY_PREFIX, states).to_simple(),
             initialized: gen_construct(INITIALIZED_PREFIX, states).to_simple(),
             history: gen_construct(HISTORY_PREFIX, states).to_simple(),
+            // TODO
+            // invocations: SimpleExpression::
             is_stable: gen_bool(false, loc).to_simple(),
             loc,
         }),
@@ -189,6 +198,18 @@ fn gen_establish_entryset(
     }));
 
     body
+}
+
+fn gen_invocations(states: &Vec<core::State>, guard: &Option<Expression>) -> Vec<Statement> {
+    let mut statements = vec![];
+
+    for state in states {
+        for invocation in &state.invocations {
+            println!("INVOKE {:?}", invocation);
+        }
+    }
+
+    statements
 }
 
 fn gen_entryset_entry_ancestors(states: &Vec<core::State>) -> Vec<Statement> {

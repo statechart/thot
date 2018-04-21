@@ -1,5 +1,5 @@
 [package]
-name = "thot-cli"
+name = "thot_cli"
 version = "0.1.0"
 authors = ["Cameron Bytheway <bytheway.cameron@gmail.com>"]
 
@@ -7,4 +7,4 @@ authors = ["Cameron Bytheway <bytheway.cameron@gmail.com>"]
 clap = "2"
 serde = "1.0"
 serde_json = "1.0"
-thot = { path = "../.." }
+thot_core = { path = "../thot_core" }

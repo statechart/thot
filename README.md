@@ -1,2 +1,3 @@
-# core
-core implementation of thot FSMs
+# thot
+
+core implementation of statecharts
