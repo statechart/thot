@@ -44,20 +44,20 @@ pub enum Expression {
 }
 
 impl Expression {
-    pub fn to_simple(self: Expression) -> SimpleExpression {
+    pub fn to_simple(&self) -> SimpleExpression {
         match self {
-            Expression::Identifier(v) => SimpleExpression::Identifier(v),
-            Expression::StringLiteral(v) => SimpleExpression::StringLiteral(v),
-            Expression::BooleanLiteral(v) => SimpleExpression::BooleanLiteral(v),
-            Expression::IntegerLiteral(v) => SimpleExpression::IntegerLiteral(v),
-            Expression::LogicalExpression(v) => SimpleExpression::LogicalExpression(v),
-            Expression::ConditionExpression(v) => SimpleExpression::ConditionExpression(v),
-            Expression::EventExpression(v) => SimpleExpression::EventExpression(v),
+            Expression::Identifier(v) => SimpleExpression::Identifier(v.clone()),
+            Expression::StringLiteral(v) => SimpleExpression::StringLiteral(v.clone()),
+            Expression::BooleanLiteral(v) => SimpleExpression::BooleanLiteral(*v),
+            Expression::IntegerLiteral(v) => SimpleExpression::IntegerLiteral(*v),
+            Expression::LogicalExpression(v) => SimpleExpression::LogicalExpression(v.clone()),
+            Expression::ConditionExpression(v) => SimpleExpression::ConditionExpression(v.clone()),
+            Expression::EventExpression(v) => SimpleExpression::EventExpression(v.clone()),
             Expression::ConfigurationCreateExpression(v) => {
-                SimpleExpression::ConfigurationCreateExpression(v)
+                SimpleExpression::ConfigurationCreateExpression(v.clone())
             }
             Expression::InvocationsCreateExpression(v) => {
-                SimpleExpression::InvocationsCreateExpression(v)
+                SimpleExpression::InvocationsCreateExpression(v.clone())
             }
             _ => {
                 panic!("Invalid conversion {:?}", self);

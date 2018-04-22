@@ -65,7 +65,7 @@ impl Into<Result<core::Core, Errors>> for statechart::Statechart {
                             idx,
                             t: core::TransitionType::External,
                             source,
-                            event: node.event.clone(),
+                            event: node.event,
                             condition: node.condition,
                             loc: node.loc,
                             ..Default::default()
@@ -75,7 +75,7 @@ impl Into<Result<core::Core, Errors>> for statechart::Statechart {
                     statechart::Node::OnEvent(node) => {
                         let source = *ancestors.last().unwrap();
                         let idx = transitions.len();
-                        let event = node.event.clone();
+                        let event = node.event;
                         states[source].transitions.push(idx);
                         let transition = core::Transition {
                             idx,
@@ -164,7 +164,7 @@ impl Into<Result<core::Core, Errors>> for statechart::Statechart {
                         ancestors.pop();
 
                         // add us to ancestor descendants
-                        for &ancestor in ancestors.iter() {
+                        for &ancestor in &ancestors {
                             states[ancestor].descendants.push(idx);
                         }
 
@@ -175,7 +175,7 @@ impl Into<Result<core::Core, Errors>> for statechart::Statechart {
 
                         // set the type to atomic if no children
                         if states[idx].t == core::StateType::Compound
-                            && states[idx].children.len() == 0
+                            && states[idx].children.is_empty()
                         {
                             states[idx].t = core::StateType::Atomic;
                         }
@@ -239,20 +239,20 @@ impl Into<Result<core::Core, Errors>> for statechart::Statechart {
 
         compute_conflicts(&mut transitions, &states);
 
-        if errors.len() > 0 {
+        if !errors.is_empty() {
             Err(errors)
         } else {
             Ok(core::Core {
-                states: states,
-                transitions: transitions,
+                states,
+                transitions,
                 loc: root_loc,
             })
         }
     }
 }
 
-fn compute_conflicts(transitions: &mut Vec<core::Transition>, states: &Vec<core::State>) {
-    let cloned = transitions.clone();
+fn compute_conflicts(transitions: &mut [core::Transition], states: &[core::State]) {
+    let cloned: Vec<core::Transition> = transitions.into();
     for mut transition in transitions {
         transition.conflicts = get_conflicts(&transition, &cloned, &states);
         transition.conflicts.sort();
@@ -261,8 +261,8 @@ fn compute_conflicts(transitions: &mut Vec<core::Transition>, states: &Vec<core:
 
 fn get_conflicts(
     transition: &core::Transition,
-    transitions: &Vec<core::Transition>,
-    states: &Vec<core::State>,
+    transitions: &[core::Transition],
+    states: &[core::State],
 ) -> Vec<core::TransitionId> {
     transitions
         .iter()
@@ -272,21 +272,21 @@ fn get_conflicts(
         .collect()
 }
 
-fn has_conflict(t1: &core::Transition, t2: &core::Transition, states: &Vec<core::State>) -> bool {
+fn has_conflict(t1: &core::Transition, t2: &core::Transition, states: &[core::State]) -> bool {
     let s1 = get_transition_source(t1, states);
     let s2 = get_transition_source(t2, states);
 
     s1.idx == s2.idx || has_insersection(&t1.exits, &t2.exits) || s1.descendants.contains(&s2.idx)
-        || s2.descendants.contains(&s1.idx) || false
+        || s2.descendants.contains(&s1.idx)
 }
 
-fn has_insersection<V: PartialEq>(arr1: &Vec<V>, arr2: &Vec<V>) -> bool {
+fn has_insersection<V: PartialEq>(arr1: &[V], arr2: &[V]) -> bool {
     arr1.iter().any(|v| arr2.contains(v))
 }
 
 fn get_exit_set<'a>(
     transition: &'a core::Transition,
-    states: &'a Vec<core::State>,
+    states: &'a [core::State],
 ) -> Vec<core::StateId> {
     let domain = get_transition_domain(transition, states);
 
@@ -295,7 +295,7 @@ fn get_exit_set<'a>(
     domain
         .descendants
         .iter()
-        .map(|idx| *idx)
+        .cloned()
         .filter(|idx| {
             let state = &states[*idx];
             match state.t {
@@ -313,7 +313,7 @@ fn get_exit_set<'a>(
 
 fn get_transition_domain<'a>(
     transition: &'a core::Transition,
-    states: &'a Vec<core::State>,
+    states: &'a [core::State],
 ) -> &'a core::State {
     let source = get_transition_source(transition, states);
     let targets = &transition.targets;
@@ -328,11 +328,11 @@ fn get_transition_domain<'a>(
 }
 
 fn find_lcca<'a>(
-    states: &'a Vec<core::State>,
+    states: &'a [core::State],
     source: &'a core::State,
-    targets: &'a Vec<core::StateId>,
+    targets: &'a [core::StateId],
 ) -> &'a core::State {
-    let mut self_and_targets = targets.clone();
+    let mut self_and_targets: Vec<core::StateId> = targets.into();
     self_and_targets.push(source.idx);
     source
         .ancestors
@@ -347,13 +347,13 @@ fn find_lcca<'a>(
         .unwrap_or(source)
 }
 
-fn are_descendants(descendants: &Vec<core::StateId>, targets: &Vec<core::StateId>) -> bool {
+fn are_descendants(descendants: &[core::StateId], targets: &[core::StateId]) -> bool {
     targets.iter().all(|target| descendants.contains(target))
 }
 
 fn get_transition_source<'a>(
     transition: &'a core::Transition,
-    states: &'a Vec<core::State>,
+    states: &'a [core::State],
 ) -> &'a core::State {
     let core::Transition { source, .. } = transition;
     let source = &states[*source];

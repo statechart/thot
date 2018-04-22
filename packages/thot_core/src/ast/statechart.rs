@@ -17,7 +17,7 @@ pub enum IteratorEvent {
 #[derive(Clone, Debug)]
 pub struct ChildIterator {
     node: Option<Box<NodeIterator>>,
-    children: Box<Vec<Node>>,
+    children: Vec<Node>,
     i: usize,
 }
 
@@ -27,7 +27,7 @@ impl Iterator for ChildIterator {
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(ref mut iter) = self.node {
             let next = iter.next();
-            if let None = next {
+            if next.is_none() {
                 self.i += 1;
             } else {
                 return next;
@@ -69,7 +69,7 @@ impl Iterator for NodeIterator {
 
         if let Some(ref mut iter) = self.children {
             let next = iter.next();
-            if let None = next {
+            if next.is_none() {
                 self.is_finished = true;
                 return Some(IteratorEvent::Exit(self.node.clone()));
             }
@@ -78,17 +78,17 @@ impl Iterator for NodeIterator {
         }
 
         let children = match self.node.as_ref() {
-            Node::Statechart(node) => Box::new(node.children.clone()),
-            Node::State(node) => Box::new(node.children.clone()),
-            Node::Parallel(node) => Box::new(node.children.clone()),
-            Node::Initial(node) => Box::new(node.children.clone()),
-            Node::Final(node) => Box::new(node.children.clone()),
-            _ => Box::new(vec![]),
+            Node::Statechart(node) => node.children.clone(),
+            Node::State(node) => node.children.clone(),
+            Node::Parallel(node) => node.children.clone(),
+            Node::Initial(node) => node.children.clone(),
+            Node::Final(node) => node.children.clone(),
+            _ => vec![],
         };
 
         let child_iterator = Box::new(ChildIterator {
             node: None,
-            children: children,
+            children,
             i: 0,
         });
 

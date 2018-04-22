@@ -21,7 +21,7 @@ impl Into<Result<Microstep, Errors>> for core::Core {
             ..Default::default()
         };
 
-        if errors.len() > 0 {
+        if !errors.is_empty() {
             Err(errors)
         } else {
             Ok(microstep)
@@ -29,49 +29,45 @@ impl Into<Result<Microstep, Errors>> for core::Core {
     }
 }
 
-const CONFIGURATION_PREFIX: &'static str = "c";
-const INITIALIZED_PREFIX: &'static str = "i";
-const HISTORY_PREFIX: &'static str = "h";
-const ENTRY_PREFIX: &'static str = "e";
-const TRANS_PREFIX: &'static str = "t";
-const EXIT_PREFIX: &'static str = "x";
-const AVAILABLE_TRANS_PREFIX: &'static str = "a";
-const ENTRY_GUARD_PREFIX: &'static str = "g";
+const CONFIGURATION_PREFIX: &str = "c";
+const INITIALIZED_PREFIX: &str = "i";
+const HISTORY_PREFIX: &str = "h";
+const ENTRY_PREFIX: &str = "e";
+const TRANS_PREFIX: &str = "t";
+const EXIT_PREFIX: &str = "x";
+const AVAILABLE_TRANS_PREFIX: &str = "a";
+const ENTRY_GUARD_PREFIX: &str = "g";
 
-fn gen_init(
-    states: &Vec<core::State>,
-    transitions: &Vec<core::Transition>,
-    loc: Location,
-) -> Function {
+fn gen_init(states: &[core::State], transitions: &[core::Transition], loc: Location) -> Function {
     let mut body = vec![];
     body.append(&mut gen_empty_configuration(
         CONFIGURATION_PREFIX,
-        gen_bool(false, loc),
+        &gen_bool(false, loc),
         &states,
     ));
     body.append(&mut gen_empty_configuration(
         INITIALIZED_PREFIX,
-        gen_bool(false, loc),
+        &gen_bool(false, loc),
         &states,
     ));
     body.append(&mut gen_empty_configuration(
         HISTORY_PREFIX,
-        gen_bool(false, loc),
+        &gen_bool(false, loc),
         &states,
     ));
     body.append(&mut gen_empty_configuration(
         ENTRY_PREFIX,
-        gen_bool(false, loc),
+        &gen_bool(false, loc),
         &states,
     ));
     body.append(&mut gen_empty_transitions(
         TRANS_PREFIX,
-        gen_bool(false, loc),
+        &gen_bool(false, loc),
         &transitions,
     ));
     body.append(&mut gen_empty_configuration(
         EXIT_PREFIX,
-        gen_bool(false, loc),
+        &gen_bool(false, loc),
         &states,
     ));
 
@@ -85,8 +81,8 @@ fn gen_init(
 }
 
 fn gen_select_transitions(
-    states: &Vec<core::State>,
-    transitions: &Vec<core::Transition>,
+    states: &[core::State],
+    transitions: &[core::Transition],
     loc: Location,
 ) -> Function {
     let configuration_ident = Identifier {
@@ -116,20 +112,20 @@ fn gen_select_transitions(
     body.push(gen_destruct(&history_ident, &states));
     body.append(&mut gen_empty_configuration(
         ENTRY_PREFIX,
-        gen_bool(false, loc),
+        &gen_bool(false, loc),
         &states,
     ));
     body.append(&mut gen_empty_configuration(
         EXIT_PREFIX,
-        gen_bool(false, loc),
+        &gen_bool(false, loc),
         &states,
     ));
     body.append(&mut gen_empty_configuration(
         AVAILABLE_TRANS_PREFIX,
-        gen_bool(true, loc),
+        &gen_bool(true, loc),
         &states,
     ));
-    body.push(gen_var(is_stable_ident.clone(), gen_bool(true, loc), loc));
+    body.push(gen_var(is_stable_ident.clone(), &gen_bool(true, loc), loc));
     body.append(&mut gen_transition_select(
         &transitions,
         &has_event,
@@ -171,8 +167,8 @@ fn gen_select_transitions(
 }
 
 fn gen_establish_entryset(
-    states: &Vec<core::State>,
-    transitions: &Vec<core::Transition>,
+    states: &[core::State],
+    transitions: &[core::Transition],
     loc: Location,
 ) -> Vec<Statement> {
     let mut body = vec![];
@@ -200,7 +196,7 @@ fn gen_establish_entryset(
     body
 }
 
-fn gen_invocations(states: &Vec<core::State>, guard: &Option<Expression>) -> Vec<Statement> {
+fn gen_invocations(states: &[core::State], guard: &Option<Expression>) -> Vec<Statement> {
     let mut statements = vec![];
 
     for state in states {
@@ -212,7 +208,7 @@ fn gen_invocations(states: &Vec<core::State>, guard: &Option<Expression>) -> Vec
     statements
 }
 
-fn gen_entryset_entry_ancestors(states: &Vec<core::State>) -> Vec<Statement> {
+fn gen_entryset_entry_ancestors(states: &[core::State]) -> Vec<Statement> {
     let mut statements = vec![];
     let num_states = states.len() - 1;
     for state in states.iter().rev() {
@@ -224,13 +220,13 @@ fn gen_entryset_entry_ancestors(states: &Vec<core::State>) -> Vec<Statement> {
         };
         match descendants.len() {
             len if len == num_states => {
-                statements.push(gen_assign(id, gen_bool(true, loc), loc));
+                statements.push(gen_assign(id, &gen_bool(true, loc), loc));
             }
             0 => (),
             _ => {
                 statements.push(gen_assign(
                     id,
-                    Expression::LogicalExpression(LogicalExpression {
+                    &Expression::LogicalExpression(LogicalExpression {
                         operator: LogicalOperator::Or,
                         arguments: state
                             .children
@@ -253,8 +249,8 @@ fn gen_entryset_entry_ancestors(states: &Vec<core::State>) -> Vec<Statement> {
 }
 
 fn gen_entryset_entry_descendants(
-    states: &Vec<core::State>,
-    transitions: &Vec<core::Transition>,
+    states: &[core::State],
+    transitions: &[core::Transition],
 ) -> Vec<Statement> {
     let mut statements = vec![];
     for state in states {
@@ -291,8 +287,8 @@ fn gen_entryset_entry_descendants(
 
 fn gen_entryset_entry_descendants_initial(
     state: &core::State,
-    states: &Vec<core::State>,
-    transitions: &Vec<core::Transition>,
+    states: &[core::State],
+    transitions: &[core::Transition],
 ) -> Vec<Statement> {
     let mut statements = vec![];
     let loc = state.loc;
@@ -300,7 +296,7 @@ fn gen_entryset_entry_descendants_initial(
         name: format!("{}{}", ENTRY_PREFIX, state.idx),
         loc,
     };
-    for transition_idx in state.transitions.iter() {
+    for transition_idx in &state.transitions {
         let transition = &transitions[*transition_idx];
         let trans_id = Identifier {
             name: format!("{}{}", TRANS_PREFIX, *transition_idx),
@@ -308,7 +304,7 @@ fn gen_entryset_entry_descendants_initial(
         };
         statements.push(gen_assign(
             trans_id.clone(),
-            Expression::Identifier(id.clone()),
+            &Expression::Identifier(id.clone()),
             loc,
         ));
         statements.append(&mut gen_union(
@@ -318,7 +314,7 @@ fn gen_entryset_entry_descendants_initial(
             loc,
         ));
 
-        for target in transition.targets.iter() {
+        for target in &transition.targets {
             statements.append(&mut gen_union(
                 &Expression::Identifier(id.clone()),
                 ENTRY_PREFIX,
@@ -327,7 +323,7 @@ fn gen_entryset_entry_descendants_initial(
             ));
         }
     }
-    statements.push(gen_assign(id, gen_bool(false, loc), loc));
+    statements.push(gen_assign(id, &gen_bool(false, loc), loc));
     statements
 }
 
@@ -341,9 +337,9 @@ fn gen_entryset_entry_descendants_compound(state: &core::State) -> Vec<Statement
 
     statements.append(&mut gen_union(
         &gen_and(
-            Expression::Identifier(id.clone()),
-            gen_not(
-                Expression::Identifier(Identifier {
+            &Expression::Identifier(id.clone()),
+            &gen_not(
+                &Expression::Identifier(Identifier {
                     name: format!("{}{}", CONFIGURATION_PREFIX, state.idx),
                     loc,
                 }),
@@ -356,22 +352,22 @@ fn gen_entryset_entry_descendants_compound(state: &core::State) -> Vec<Statement
         loc,
     ));
 
-    for child in state.children.iter() {
+    for child in &state.children {
         let child_entry = Identifier {
             name: format!("{}{}", ENTRY_PREFIX, child),
             loc,
         };
         statements.push(gen_assign(
             child_entry.clone(),
-            gen_or(
-                Expression::Identifier(child_entry),
-                gen_and(
-                    Expression::Identifier(Identifier {
+            &gen_or(
+                &Expression::Identifier(child_entry),
+                &gen_and(
+                    &Expression::Identifier(Identifier {
                         name: format!("{}{}", CONFIGURATION_PREFIX, child),
                         loc,
                     }),
-                    gen_not(
-                        Expression::Identifier(Identifier {
+                    &gen_not(
+                        &Expression::Identifier(Identifier {
                             name: format!("{}{}", EXIT_PREFIX, child),
                             loc,
                         }),
@@ -388,7 +384,7 @@ fn gen_entryset_entry_descendants_compound(state: &core::State) -> Vec<Statement
     statements
 }
 
-fn gen_entryset_exit_states(states: &Vec<core::State>) -> Vec<Statement> {
+fn gen_entryset_exit_states(states: &[core::State]) -> Vec<Statement> {
     let mut statements = vec![];
     for state in states.iter().rev() {
         let loc = state.loc;
@@ -398,11 +394,11 @@ fn gen_entryset_exit_states(states: &Vec<core::State>) -> Vec<Statement> {
             statements.push(Statement::ExecuteStatement(ExecuteStatement {
                 id: *id,
                 guard: Some(gen_and(
-                    Expression::Identifier(Identifier {
+                    &Expression::Identifier(Identifier {
                         name: format!("{}{}", CONFIGURATION_PREFIX, idx),
                         loc,
                     }),
-                    Expression::Identifier(Identifier {
+                    &Expression::Identifier(Identifier {
                         name: format!("{}{}", EXIT_PREFIX, idx),
                         loc,
                     }),
@@ -415,7 +411,7 @@ fn gen_entryset_exit_states(states: &Vec<core::State>) -> Vec<Statement> {
     statements
 }
 
-fn gen_entryset_take_transitions(transitions: &Vec<core::Transition>) -> Vec<Statement> {
+fn gen_entryset_take_transitions(transitions: &[core::Transition]) -> Vec<Statement> {
     let mut statements = vec![];
     for transition in transitions {
         let loc = transition.loc;
@@ -434,7 +430,7 @@ fn gen_entryset_take_transitions(transitions: &Vec<core::Transition>) -> Vec<Sta
     statements
 }
 
-fn gen_entryset_enter_states(states: &Vec<core::State>) -> Vec<Statement> {
+fn gen_entryset_enter_states(states: &[core::State]) -> Vec<Statement> {
     let mut statements = vec![];
     for state in states {
         let loc = state.loc;
@@ -451,10 +447,10 @@ fn gen_entryset_enter_states(states: &Vec<core::State>) -> Vec<Statement> {
         if state.on_init.len() + state.on_enter.len() > 0 {
             statements.push(gen_var(
                 guard_ident.clone(),
-                gen_and(
-                    entry.clone(),
-                    gen_not(
-                        Expression::Identifier(Identifier {
+                &gen_and(
+                    &entry,
+                    &gen_not(
+                        &Expression::Identifier(Identifier {
                             name: format!("{}{}", CONFIGURATION_PREFIX, idx),
                             loc,
                         }),
@@ -475,8 +471,8 @@ fn gen_entryset_enter_states(states: &Vec<core::State>) -> Vec<Statement> {
             statements.push(Statement::ExecuteStatement(ExecuteStatement {
                 id: *id,
                 guard: Some(gen_and(
-                    Expression::Identifier(guard_ident.clone()),
-                    gen_not(Expression::Identifier(initital_ident.clone()), loc),
+                    &Expression::Identifier(guard_ident.clone()),
+                    &gen_not(&Expression::Identifier(initital_ident.clone()), loc),
                     loc,
                 )),
                 loc,
@@ -485,7 +481,7 @@ fn gen_entryset_enter_states(states: &Vec<core::State>) -> Vec<Statement> {
 
         statements.push(gen_assign(
             initital_ident.clone(),
-            gen_or(Expression::Identifier(initital_ident), entry, loc),
+            &gen_or(&Expression::Identifier(initital_ident), &entry, loc),
             loc,
         ));
 
@@ -500,7 +496,7 @@ fn gen_entryset_enter_states(states: &Vec<core::State>) -> Vec<Statement> {
     statements
 }
 
-fn gen_destruct(configuration: &Identifier, states: &Vec<core::State>) -> Statement {
+fn gen_destruct(configuration: &Identifier, states: &[core::State]) -> Statement {
     let left = (0..states.len())
         .map(|index| {
             let loc = states[index].loc;
@@ -518,7 +514,7 @@ fn gen_destruct(configuration: &Identifier, states: &Vec<core::State>) -> Statem
     })
 }
 
-fn gen_construct(prefix: &'static str, states: &Vec<core::State>) -> Expression {
+fn gen_construct(prefix: &'static str, states: &[core::State]) -> Expression {
     let arguments = (0..states.len())
         .map(|index| {
             let loc = states[index].loc;
@@ -537,8 +533,8 @@ fn gen_construct(prefix: &'static str, states: &Vec<core::State>) -> Expression 
 
 fn gen_empty_configuration(
     name: &'static str,
-    init: Expression,
-    states: &Vec<core::State>,
+    init: &Expression,
+    states: &[core::State],
 ) -> Vec<Statement> {
     (0..states.len())
         .map(|index| {
@@ -548,7 +544,7 @@ fn gen_empty_configuration(
                     name: format!("{}{}", name, index),
                     loc,
                 },
-                init.clone(),
+                &init,
                 loc,
             )
         })
@@ -557,8 +553,8 @@ fn gen_empty_configuration(
 
 fn gen_empty_transitions(
     name: &'static str,
-    init: Expression,
-    transitions: &Vec<core::Transition>,
+    init: &Expression,
+    transitions: &[core::Transition],
 ) -> Vec<Statement> {
     (0..transitions.len())
         .map(|index| {
@@ -568,7 +564,7 @@ fn gen_empty_transitions(
                     name: format!("{}{}", name, index),
                     loc,
                 },
-                init.clone(),
+                &init,
                 loc,
             )
         })
@@ -576,7 +572,7 @@ fn gen_empty_transitions(
 }
 
 fn gen_transition_select(
-    transitions: &Vec<core::Transition>,
+    transitions: &[core::Transition],
     has_event: &Identifier,
     is_stable: &Identifier,
 ) -> Vec<Statement> {
@@ -605,7 +601,7 @@ fn gen_transition_select(
 
                 statements.push(gen_var(
                     transition_ident,
-                    Expression::LogicalExpression(LogicalExpression {
+                    &Expression::LogicalExpression(LogicalExpression {
                         operator: LogicalOperator::And,
                         arguments,
                         loc,
@@ -621,16 +617,16 @@ fn gen_transition_select(
                 ));
                 statements.append(&mut gen_union(&guard, EXIT_PREFIX, &transition.exits, loc));
                 statements.append(&mut gen_intersection(
-                    &gen_not(guard.clone(), loc),
+                    &gen_not(&guard, loc),
                     AVAILABLE_TRANS_PREFIX,
                     &transition.conflicts,
                     loc,
                 ));
                 statements.push(gen_assign(
                     is_stable.clone(),
-                    gen_and(
-                        Expression::Identifier(is_stable.clone()),
-                        gen_not(guard, loc),
+                    &gen_and(
+                        &Expression::Identifier(is_stable.clone()),
+                        &gen_not(&guard, loc),
                         loc,
                     ),
                     loc,
@@ -660,9 +656,9 @@ fn gen_is_transition_active(transition: &core::Transition) -> Expression {
             }
 
             gen_and(
-                config_check,
-                gen_not(
-                    Expression::LogicalExpression(LogicalExpression {
+                &config_check,
+                &gen_not(
+                    &Expression::LogicalExpression(LogicalExpression {
                         operator: LogicalOperator::And,
                         arguments,
                         loc,
@@ -690,12 +686,12 @@ fn gen_is_transition_applicable(
     let loc = transition.loc;
     if let Some(id) = transition.event {
         gen_and(
-            Expression::Identifier(has_event.clone()),
-            Expression::EventExpression(EventExpression { id, loc }),
+            &Expression::Identifier(has_event.clone()),
+            &Expression::EventExpression(EventExpression { id, loc }),
             loc,
         )
     } else {
-        gen_not(Expression::Identifier(has_event.clone()), loc)
+        gen_not(&Expression::Identifier(has_event.clone()), loc)
     }
 }
 
@@ -713,7 +709,7 @@ fn gen_is_transition_enabled(transition: &core::Transition) -> Option<Expression
 fn gen_union(
     guard: &Expression,
     prefix: &'static str,
-    ids: &Vec<core::StateId>,
+    ids: &[core::StateId],
     loc: Location,
 ) -> Vec<Statement> {
     gen_merge(guard, LogicalOperator::Or, prefix, ids, loc)
@@ -722,21 +718,21 @@ fn gen_union(
 fn gen_intersection(
     guard: &Expression,
     prefix: &'static str,
-    ids: &Vec<core::StateId>,
+    ids: &[core::StateId],
     loc: Location,
 ) -> Vec<Statement> {
     gen_merge(guard, LogicalOperator::And, prefix, ids, loc)
 }
 
-fn gen_not(expr: Expression, loc: Location) -> Expression {
+fn gen_not(expr: &Expression, loc: Location) -> Expression {
     Expression::LogicalExpression(LogicalExpression {
         operator: LogicalOperator::Not,
-        arguments: vec![expr],
+        arguments: vec![expr.clone()],
         loc,
     })
 }
 
-fn gen_or(lhs: Expression, rhs: Expression, loc: Location) -> Expression {
+fn gen_or(lhs: &Expression, rhs: &Expression, loc: Location) -> Expression {
     Expression::LogicalExpression(LogicalExpression {
         operator: LogicalOperator::Or,
         arguments: vec![lhs.clone(), rhs.clone()],
@@ -744,7 +740,7 @@ fn gen_or(lhs: Expression, rhs: Expression, loc: Location) -> Expression {
     })
 }
 
-fn gen_and(lhs: Expression, rhs: Expression, loc: Location) -> Expression {
+fn gen_and(lhs: &Expression, rhs: &Expression, loc: Location) -> Expression {
     Expression::LogicalExpression(LogicalExpression {
         operator: LogicalOperator::And,
         arguments: vec![lhs.clone(), rhs.clone()],
@@ -756,18 +752,18 @@ fn gen_bool(value: bool, loc: Location) -> Expression {
     Expression::BooleanLiteral(BooleanLiteral { value, loc })
 }
 
-fn gen_var(id: Identifier, init: Expression, loc: Location) -> Statement {
+fn gen_var(id: Identifier, init: &Expression, loc: Location) -> Statement {
     Statement::VariableDeclaration(VariableDeclaration {
         id: VariableDeclarationId::Identifier(id),
-        init,
+        init: init.clone(),
         loc,
     })
 }
 
-fn gen_assign(left: Identifier, right: Expression, loc: Location) -> Statement {
+fn gen_assign(left: Identifier, right: &Expression, loc: Location) -> Statement {
     Statement::AssignmentStatement(AssignmentStatement {
         left: AssignmentStatementLeft::Identifier(left),
-        right,
+        right: right.clone(),
         loc,
     })
 }
@@ -776,7 +772,7 @@ fn gen_merge(
     guard: &Expression,
     operator: LogicalOperator,
     prefix: &'static str,
-    ids: &Vec<core::StateId>,
+    ids: &[core::StateId],
     loc: Location,
 ) -> Vec<Statement> {
     ids.iter()
@@ -787,7 +783,7 @@ fn gen_merge(
             };
             gen_assign(
                 id.clone(),
-                Expression::LogicalExpression(LogicalExpression {
+                &Expression::LogicalExpression(LogicalExpression {
                     operator,
                     arguments: vec![Expression::Identifier(id), guard.clone()],
                     loc,
